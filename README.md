@@ -24,11 +24,11 @@ A hotel management platform built on a microservices architecture.
 |---------|------|----------|--------|
 | Identity | 5001 | hotelos_identity | ✅ Complete |
 | Reception | 5002 | hotelos_reception | ✅ Complete |
-| Payment | 5003 | hotelos_payment | 🔲 Pending |
-| RoomService | 5004 | hotelos_roomservice | 🔲 Pending |
-| Housekeeping | 5005 | hotelos_housekeeping | 🔲 Pending |
-| Maintenance | 5006 | hotelos_maintenance | 🔲 Pending |
-| Notification | 5007 | — (stateless) | 🔲 Pending |
+| Payment | 5003 | hotelos_payment | ✅ Complete |
+| RoomService | 5004 | hotelos_roomservice | ✅ Complete |
+| Housekeeping | 5005 | hotelos_housekeeping | ✅ Complete |
+| Maintenance | 5006 | hotelos_maintenance | ✅ Complete |
+| Notification | 5007 | — (stateless) | ✅ Complete |
 
 ## Key Design Decisions
 
