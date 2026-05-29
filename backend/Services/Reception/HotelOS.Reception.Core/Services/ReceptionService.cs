@@ -32,8 +32,8 @@ public class ReceptionService : IReceptionService
 
     public async Task<Room> CreateRoomAsync(Room room)
     {
-        room.Id            = Guid.NewGuid();
-        room.BufferConfig  = new RoomBufferConfig
+        room.Id           = Guid.NewGuid();
+        room.BufferConfig = new RoomBufferConfig
         {
             Id     = Guid.NewGuid(),
             RoomId = room.Id
@@ -55,43 +55,23 @@ public class ReceptionService : IReceptionService
 
     // ── Booking operations ─────────────────────────────────────
 
+    public async Task<Booking?> GetBookingAsync(Guid bookingId)
+        => await _bookingRepo.GetByIdAsync(bookingId);
+
     public async Task<Booking> CreateReservationAsync(
         Guid guestId, Guid roomId,
         DateTime checkIn, DateTime checkOut)
     {
-        var room = await _roomRepo.GetByIdWithBookingsAsync(roomId)
-                   ?? throw new KeyNotFoundException($"Room {roomId} not found.");
+        if (checkIn >= checkOut)
+            throw new ArgumentException("CheckOut must be after CheckIn.");
 
-        // force UTC — PostgreSQL rejects Unspecified kind
         var checkInUtc  = DateTime.SpecifyKind(checkIn,  DateTimeKind.Utc);
         var checkOutUtc = DateTime.SpecifyKind(checkOut, DateTimeKind.Utc);
 
-        if (!room.IsAvailable(checkInUtc, checkOutUtc))
-            throw new InvalidOperationException(
-                "Room is not available for the requested dates.");
-
-        var effectiveCheckout = room.BufferConfig
-            .GetEarliestNextCheckIn(checkOutUtc, false);
-
-        var nights     = (checkOutUtc - checkInUtc).TotalDays;
-        var totalPrice = nights * room.PricePerNight;
-
-        var booking = new Booking
-        {
-            Id                = Guid.NewGuid(),
-            GuestId           = guestId,
-            RoomId            = roomId,
-            CheckIn           = checkInUtc,
-            CheckOut          = checkOutUtc,
-            EffectiveCheckout = effectiveCheckout,
-            Status            = BookingStatus.PendingPayment,
-            TotalPrice        = totalPrice,
-            CreatedAt         = DateTime.UtcNow,
-            ExpiresAt         = DateTime.UtcNow.AddMinutes(10),
-        };
-
-        await _bookingRepo.AddAsync(booking);
-        return booking;
+        // Transactional: re-checks availability under a DB-level lock,
+        // sets room.Status = Reserved, and creates booking atomically.
+        return await _bookingRepo.CreateReservedAsync(
+            guestId, roomId, checkInUtc, checkOutUtc);
     }
 
     public async Task<Booking> ConfirmReservationAsync(Guid bookingId)
@@ -121,17 +101,21 @@ public class ReceptionService : IReceptionService
             throw new InvalidOperationException(
                 $"Cannot cancel booking in status {booking.Status}.");
 
-        // apply cancellation penalty based on how close to check-in
         var hoursUntilCheckIn = (booking.CheckIn - DateTime.UtcNow).TotalHours;
         booking.PenaltyType = hoursUntilCheckIn switch
         {
-            > 48  => CancellationPenalty.FullRefund,
-            > 24  => CancellationPenalty.StandardPenalty,
-            _     => CancellationPenalty.NoRefund
+            > 48 => CancellationPenalty.FullRefund,
+            > 24 => CancellationPenalty.StandardPenalty,
+            _    => CancellationPenalty.NoRefund
         };
 
         booking.Status = BookingStatus.Cancelled;
         await _bookingRepo.UpdateAsync(booking);
+
+        // Release the room if it was waiting for check-in (Reserved)
+        if (booking.Room?.Status == RoomStatus.Reserved)
+            await UpdateRoomStatusAsync(booking.RoomId, RoomStatus.Available);
+
         return booking;
     }
 
@@ -147,7 +131,6 @@ public class ReceptionService : IReceptionService
         booking.Status = BookingStatus.Active;
         await _bookingRepo.UpdateAsync(booking);
 
-        // update room status to Active
         await UpdateRoomStatusAsync(booking.RoomId, RoomStatus.Active);
         return booking;
     }
@@ -164,7 +147,6 @@ public class ReceptionService : IReceptionService
         booking.Status = BookingStatus.Completed;
         await _bookingRepo.UpdateAsync(booking);
 
-        // update room status — triggers room.vacated via broker in controller
         await UpdateRoomStatusAsync(booking.RoomId, RoomStatus.Cleaning);
         return booking;
     }
@@ -173,14 +155,10 @@ public class ReceptionService : IReceptionService
         Guid guestId, Guid roomId,
         DateTime checkIn, DateTime checkOut)
     {
-        // walk-in: create + confirm immediately (no 10-min window)
-        var booking = await CreateReservationAsync(
-            guestId, roomId, checkIn, checkOut);
-
-        booking.Status    = BookingStatus.Confirmed;
-        booking.ExpiresAt = DateTime.UtcNow.AddMinutes(10);
-        await _bookingRepo.UpdateAsync(booking);
-        return booking;
+        // Same race-condition-safe path as a guest reservation:
+        // room → Reserved, booking → PendingPayment, 10-min expiry window.
+        // Receptionist confirms payment (or it expires and room releases).
+        return await CreateReservationAsync(guestId, roomId, checkIn, checkOut);
     }
 
     public async Task<bool> ReassignRoomAsync(Guid bookingId, Guid newRoomId)
@@ -210,6 +188,9 @@ public class ReceptionService : IReceptionService
         {
             booking.Status = BookingStatus.TimedOut;
             await _bookingRepo.UpdateAsync(booking);
+
+            // Release the Reserved room back to Available
+            await UpdateRoomStatusAsync(booking.RoomId, RoomStatus.Available);
         }
     }
 }

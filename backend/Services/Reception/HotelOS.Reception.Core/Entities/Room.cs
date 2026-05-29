@@ -31,9 +31,11 @@ public class Room
     public bool IsAvailable(DateTime wantedIn, DateTime wantedOut,
         bool hasActiveMaintenanceTicket = false)
     {
-        // 1. room must not be OOS or Archived
-        if (Status == RoomStatus.OOS || Status == RoomStatus.Archived)
-            return false;
+        // 1. hard-blocked statuses — cannot accept any new booking
+        if (Status == RoomStatus.Reserved) return false;
+        if (Status == RoomStatus.Active)   return false;
+        if (Status == RoomStatus.OOS)      return false;
+        if (Status == RoomStatus.Archived) return false;
 
         // 2. compute effectiveCheckout for each active booking and check overlap
         foreach (var booking in Bookings)

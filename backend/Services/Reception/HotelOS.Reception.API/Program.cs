@@ -1,4 +1,6 @@
 using System.Text;
+using HotelOS.Reception.API.Consumers;
+using HotelOS.Reception.API.Workers;
 using HotelOS.Reception.Core.Interfaces;
 using HotelOS.Reception.Core.Services;
 using HotelOS.Reception.Infrastructure.Data;
@@ -32,12 +34,18 @@ builder.Services.AddScoped<IReceptionService,  ReceptionService>();
 // ── MassTransit + RabbitMQ ────────────────────────────────────
 builder.Services.AddMassTransit(x =>
 {
+    x.AddConsumer<PaymentConfirmedConsumer>();
+    x.AddConsumer<RoomStatusUpdatedConsumer>();
+
     x.UsingRabbitMq((ctx, cfg) =>
     {
         cfg.Host(builder.Configuration["RabbitMQ:Uri"]);
         cfg.ConfigureEndpoints(ctx);
     });
 });
+
+// ── Background Workers ────────────────────────────────────────
+builder.Services.AddHostedService<ReservationExpiryWorker>();
 
 // ── JWT Authentication ─────────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:Key"]

@@ -27,5 +27,9 @@ public class RoomVacatedConsumer : IConsumer<RoomVacatedEvent>
         // auto-assign cleaning log when room is vacated
         // StaffId is zero here — manager assigns staff via API
         await _service.AssignCleaningAsync(e.RoomId, Guid.Empty);
+
+        // notify Reception so it can update room status to Cleaning
+        await context.Publish(new RoomStatusUpdatedEvent(
+            e.RoomId, e.RoomNumber, "Cleaning", DateTime.UtcNow));
     }
 }

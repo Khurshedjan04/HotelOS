@@ -13,6 +13,7 @@ public interface IReceptionService
     Task<Room?> GetRoomAsync(Guid roomId);
 
     // Booking operations
+    Task<Booking?> GetBookingAsync(Guid bookingId);
     Task<Booking> CreateReservationAsync(
         Guid guestId, Guid roomId, DateTime checkIn, DateTime checkOut);
     Task<Booking> ConfirmReservationAsync(Guid bookingId);

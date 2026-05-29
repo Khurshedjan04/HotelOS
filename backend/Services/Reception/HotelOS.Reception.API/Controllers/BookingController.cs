@@ -60,16 +60,8 @@ public class BookingController : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetById(Guid id)
     {
-        try
-        {
-            var booking = await _service
-                .ConfirmReservationAsync(id); // just fetching
-            return Ok(MapToResponse(booking));
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
-        }
+        var booking = await _service.GetBookingAsync(id);
+        return booking is null ? NotFound() : Ok(MapToResponse(booking));
     }
 
     /// <summary>POST api/bookings/{id}/confirm — called by Payment Service

@@ -34,7 +34,9 @@ public class RoomRepository : IRoomRepository
         var query = _db.Rooms
             .Include(r => r.Bookings)
             .Include(r => r.BufferConfig)
-            .Where(r => r.Status != RoomStatus.OOS
+            .Where(r => r.Status != RoomStatus.Reserved
+                     && r.Status != RoomStatus.Active
+                     && r.Status != RoomStatus.OOS
                      && r.Status != RoomStatus.Archived);
 
         if (style.HasValue)

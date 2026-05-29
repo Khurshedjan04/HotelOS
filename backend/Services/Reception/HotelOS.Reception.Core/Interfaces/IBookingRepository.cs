@@ -11,4 +11,12 @@ public interface IBookingRepository
     Task<IEnumerable<Booking>> GetExpiredPendingAsync();
     Task AddAsync(Booking booking);
     Task UpdateAsync(Booking booking);
+
+    /// <summary>
+    /// Atomically re-checks availability, sets room.Status = Reserved,
+    /// and inserts a PendingPayment booking — all inside one DB transaction.
+    /// Throws InvalidOperationException on race-condition conflict.
+    /// </summary>
+    Task<Booking> CreateReservedAsync(
+        Guid guestId, Guid roomId, DateTime checkIn, DateTime checkOut);
 }
