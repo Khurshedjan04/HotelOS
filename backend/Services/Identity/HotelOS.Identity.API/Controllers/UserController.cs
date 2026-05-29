@@ -71,6 +71,23 @@ public class UserController : ControllerBase
         }
     }
 
+    /// <summary>GET api/users — all accounts (Manager staff list)</summary>
+    [HttpGet]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> GetAll()
+    {
+        var accounts = await _identityService.GetAllAccountsAsync();
+        return Ok(accounts.Select(a => new
+        {
+            a.Id,
+            a.Email,
+            Role   = a.Role.ToString(),
+            Status = a.Status.ToString(),
+            a.CreatedAt,
+            a.LastLoginAt
+        }));
+    }
+
     /// <summary>GET api/users/{id}</summary>
     [HttpGet("{id:guid}")]
     [Authorize]
@@ -83,6 +100,55 @@ public class UserController : ControllerBase
             AccountId = id,
             Profile   = profile
         });
+    }
+
+    /// <summary>PUT api/users/{id}/profile — update staff profile</summary>
+    [HttpPut("{id:guid}/profile")]
+    [Authorize]
+    public async Task<IActionResult> UpdateProfile(
+        Guid id, [FromBody] StaffProfileDto dto)
+    {
+        try
+        {
+            var profile = new HotelOS.Identity.Core.Entities.StaffProfile
+            {
+                FirstName             = dto.FirstName,
+                LastName              = dto.LastName,
+                Phone                 = dto.Phone,
+                Department            = dto.Department,
+                JobTitle              = dto.JobTitle,
+                HireDate              = dto.HireDate,
+                EmergencyContactName  = dto.EmergencyContactName,
+                EmergencyContactPhone = dto.EmergencyContactPhone,
+            };
+            await _identityService.UpdateStaffProfileAsync(id, profile);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>POST api/users/{id}/change-password</summary>
+    [HttpPost("{id:guid}/change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword(
+        Guid id, [FromBody] ChangePasswordRequest request)
+    {
+        try
+        {
+            var success = await _identityService.ChangePasswordAsync(
+                id, request.CurrentPassword, request.NewPassword);
+
+            return success
+                ? Ok(new { message = "Password changed successfully." })
+                : Conflict(new { message = "Current password is incorrect." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
     }
 
     /// <summary>DELETE api/users/{id} — Manager only</summary>

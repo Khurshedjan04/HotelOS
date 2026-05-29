@@ -14,12 +14,39 @@ public class MenuController : ControllerBase
 
     public MenuController(IRoomServiceService service) => _service = service;
 
-    /// <summary>GET api/menu — public menu</summary>
+    /// <summary>GET api/menu — public menu (available items only)</summary>
     [HttpGet]
     public async Task<IActionResult> GetMenu()
     {
         var items = await _service.GetMenuAsync();
         return Ok(items.Select(MapItem));
+    }
+
+    /// <summary>GET api/menu/{id}</summary>
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var item = await _service.GetMenuItemByIdAsync(id);
+        return item is null ? NotFound() : Ok(MapItem(item));
+    }
+
+    /// <summary>PUT api/menu/{id} — Manager updates item</summary>
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> Update(
+        Guid id, [FromBody] UpdateMenuItemRequest request)
+    {
+        try
+        {
+            var item = await _service.UpdateMenuItemAsync(
+                id, request.Name, request.Description,
+                request.Price, request.Category);
+            return Ok(MapItem(item));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
     }
 
     /// <summary>POST api/menu — Manager adds item</summary>

@@ -24,6 +24,7 @@ public class RoomRepository : IRoomRepository
 
     public async Task<IEnumerable<Room>> GetAllAsync()
         => await _db.Rooms
+                    .Include(r => r.Bookings)
                     .Include(r => r.BufferConfig)
                     .ToListAsync();
 

@@ -21,7 +21,9 @@ public class OrderRepository : IOrderRepository
     public async Task<IEnumerable<Order>> GetByBookingIdAsync(Guid bookingId)
         => await _db.Orders
             .Include(o => o.Items)
+            .ThenInclude(i => i.MenuItem)
             .Where(o => o.BookingId == bookingId)
+            .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
 
     public async Task<IEnumerable<Order>> GetActiveAsync()

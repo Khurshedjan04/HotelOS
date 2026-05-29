@@ -13,3 +13,9 @@ public record MenuItemResponse(
     double Price,
     string Category,
     bool   IsAvailable);
+
+public record UpdateMenuItemRequest(
+    string Name,
+    string Description,
+    double Price,
+    string Category);

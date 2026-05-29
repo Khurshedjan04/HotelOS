@@ -6,6 +6,7 @@ using HotelOS.Shared.Contracts.Events;
 using MassTransit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace HotelOS.Reception.API.Controllers;
 
@@ -20,6 +21,20 @@ public class RoomController : ControllerBase
     {
         _service = service;
         _broker  = broker;
+    }
+
+    /// <summary>GET api/rooms?status=Available — Manager / Receptionist</summary>
+    [HttpGet]
+    [Authorize(Roles = "Manager,Receptionist")]
+    public async Task<IActionResult> GetAll([FromQuery] RoomStatus? status)
+    {
+        var rooms = await _service.GetAllRoomsAsync(status);
+        return Ok(rooms.Select(r => new RoomResponse(
+            r.Id, r.RoomNumber, r.Floor,
+            r.Style.ToString(), r.Status.ToString(),
+            r.PricePerNight, r.Capacity,
+            r.IsSmokingAllowed, r.Description,
+            r.GetNextAvailableDate())));
     }
 
     /// <summary>GET api/rooms/search?style=Deluxe&checkIn=...&checkOut=...</summary>
@@ -104,6 +119,43 @@ public class RoomController : ControllerBase
                 id, string.Empty, status.ToString(), DateTime.UtcNow));
 
             return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>PATCH api/rooms/{id}/buffer — Manager updates cleaning/maintenance buffer</summary>
+    [HttpPatch("{id:guid}/buffer")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> UpdateBuffer(
+        Guid id, [FromBody] UpdateBufferRequest request)
+    {
+        try
+        {
+            if (!Enum.TryParse<HotelOS.Reception.Core.Enums.BufferType>(
+                    request.BufferType, out var bufferType))
+                return BadRequest(new { message = "Invalid BufferType value." });
+
+            var managerId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+            await _service.UpdateRoomBufferAsync(
+                id,
+                request.CleaningBufferMins,
+                request.MaintenanceBufferMins,
+                bufferType,
+                managerId);
+
+            var room = await _service.GetRoomAsync(id);
+            var cfg  = room!.BufferConfig;
+
+            return Ok(new BufferResponse(
+                id,
+                cfg.CleaningBufferMins,
+                cfg.MaintenanceBufferMins,
+                cfg.BufferType.ToString(),
+                cfg.UpdatedAt));
         }
         catch (KeyNotFoundException ex)
         {

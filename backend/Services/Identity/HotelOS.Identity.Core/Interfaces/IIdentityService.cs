@@ -13,6 +13,7 @@ public interface IIdentityService
     Task<bool> ChangePasswordAsync(Guid accountId,
         string currentPassword, string newPassword);
     Task<bool> DeactivateAccountAsync(Guid accountId);
+    Task<IEnumerable<Account>> GetAllAccountsAsync();
     Task<StaffProfile?> GetStaffProfileAsync(Guid accountId);
     Task UpdateStaffProfileAsync(Guid accountId, StaffProfile profile);
 }

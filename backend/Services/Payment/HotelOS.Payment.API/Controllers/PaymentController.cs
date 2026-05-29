@@ -121,6 +121,21 @@ public class PaymentController : ControllerBase
         }
     }
 
+    /// <summary>GET api/payments — all payments (Manager dashboard)</summary>
+    [HttpGet]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> GetAll()
+    {
+        var payments = await _service.GetAllPaymentsAsync();
+        return Ok(payments.Select(p => new PaymentResponse(
+            p.Id, p.BookingId,
+            p.Amount, p.Currency,
+            p.Status.ToString(),
+            null,
+            p.GatewayRef,
+            p.CreatedAt)));
+    }
+
     /// <summary>GET api/payments/booking/{bookingId}</summary>
     [HttpGet("booking/{bookingId:guid}")]
     [Authorize]
@@ -136,6 +151,36 @@ public class PaymentController : ControllerBase
             payment.StripeClientSecret,
             payment.GatewayRef,
             payment.CreatedAt));
+    }
+
+    /// <summary>POST api/payments/{id}/confirm-manual — bypass Stripe for testing</summary>
+    [HttpPost("{id:guid}/confirm-manual")]
+    [Authorize(Roles = "Manager,Receptionist")]
+    public async Task<IActionResult> ConfirmManual(Guid id)
+    {
+        try
+        {
+            var payment = await _service.ConfirmManualAsync(id);
+
+            await _broker.Publish(new PaymentConfirmedEvent(
+                payment.BookingId, payment.Id,
+                payment.GatewayRef!, DateTime.UtcNow));
+
+            return Ok(new PaymentResponse(
+                payment.Id, payment.BookingId,
+                payment.Amount, payment.Currency,
+                payment.Status.ToString(),
+                null, payment.GatewayRef,
+                payment.CreatedAt));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     /// <summary>POST api/payments/refund/{bookingId} — Manager only</summary>

@@ -74,6 +74,24 @@ public class PaymentService : IPaymentService
         return payment;
     }
 
+    public async Task<IEnumerable<PaymentRecord>> GetAllPaymentsAsync()
+        => await _repo.GetAllAsync();
+
+    public async Task<PaymentRecord> ConfirmManualAsync(Guid paymentId)
+    {
+        var payment = await _repo.GetByIdAsync(paymentId)
+            ?? throw new KeyNotFoundException($"Payment {paymentId} not found.");
+
+        if (payment.Status == PaymentStatus.Completed)
+            throw new InvalidOperationException("Payment is already confirmed.");
+
+        payment.Status      = PaymentStatus.Completed;
+        payment.GatewayRef  = $"MANUAL-{paymentId:N}";
+        payment.CompletedAt = DateTime.UtcNow;
+        await _repo.UpdateAsync(payment);
+        return payment;
+    }
+
     public async Task<PaymentRecord?> GetByBookingIdAsync(Guid bookingId)
         => await _repo.GetByBookingIdAsync(bookingId);
 }

@@ -21,6 +21,25 @@ public class BookingController : ControllerBase
         _broker  = broker;
     }
 
+    /// <summary>GET api/bookings?status=Confirmed — Manager / Receptionist</summary>
+    [HttpGet]
+    [Authorize(Roles = "Manager,Receptionist")]
+    public async Task<IActionResult> GetAll(
+        [FromQuery] Core.Enums.BookingStatus? status)
+    {
+        var bookings = await _service.GetAllBookingsAsync(status);
+        return Ok(bookings.Select(MapToResponse));
+    }
+
+    /// <summary>GET api/bookings/guest/{guestId} — Guest's own bookings</summary>
+    [HttpGet("guest/{guestId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> GetByGuest(Guid guestId)
+    {
+        var bookings = await _service.GetBookingsByGuestIdAsync(guestId);
+        return Ok(bookings.Select(MapToResponse));
+    }
+
     /// <summary>POST api/bookings — Guest creates reservation</summary>
     [HttpPost]
     [Authorize(Roles = "Client")]
@@ -93,6 +112,13 @@ public class BookingController : ControllerBase
         try
         {
             var booking = await _service.CancelReservationAsync(id);
+
+            // notify Payment Service so it can trigger the appropriate refund
+            await _broker.Publish(new BookingCancelledEvent(
+                booking.Id, booking.GuestId,
+                booking.PenaltyType.ToString(),
+                DateTime.UtcNow));
+
             return Ok(MapToResponse(booking));
         }
         catch (InvalidOperationException ex)
@@ -109,6 +135,11 @@ public class BookingController : ControllerBase
         try
         {
             var booking = await _service.CheckInAsync(id);
+
+            // notify RoomService so it allows food orders for this room
+            await _broker.Publish(new RoomStatusUpdatedEvent(
+                booking.RoomId, string.Empty, "Active", DateTime.UtcNow));
+
             return Ok(MapToResponse(booking));
         }
         catch (InvalidOperationException ex)

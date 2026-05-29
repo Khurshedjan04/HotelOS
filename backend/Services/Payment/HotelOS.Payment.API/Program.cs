@@ -1,4 +1,5 @@
 using System.Text;
+using HotelOS.Payment.API.Consumers;
 using HotelOS.Payment.Core.Interfaces;
 using HotelOS.Payment.Core.Services;
 using HotelOS.Payment.Infrastructure.Adapters;
@@ -34,6 +35,8 @@ builder.Services.AddSingleton(_ =>
 
 builder.Services.AddMassTransit(x =>
 {
+    x.AddConsumer<BookingCancelledConsumer>();
+
     x.UsingRabbitMq((ctx, cfg) =>
     {
         cfg.Host(builder.Configuration["RabbitMQ:Uri"]);

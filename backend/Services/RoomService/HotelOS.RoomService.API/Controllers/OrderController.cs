@@ -65,6 +65,15 @@ public class OrderController : ControllerBase
         return Ok(MapOrder(order));
     }
 
+    /// <summary>GET api/orders/booking/{bookingId} — Guest's orders for a booking</summary>
+    [HttpGet("booking/{bookingId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> GetByBooking(Guid bookingId)
+    {
+        var orders = await _service.GetOrdersByBookingIdAsync(bookingId);
+        return Ok(orders.Select(MapOrder));
+    }
+
     /// <summary>GET api/orders/active — Kitchen dashboard</summary>
     [HttpGet("active")]
     [Authorize(Roles = "KitchenStaff,Manager,Server")]

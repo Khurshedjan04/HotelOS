@@ -14,6 +14,9 @@ public class PaymentRepository : IPaymentRepository
     public async Task<PaymentRecord?> GetByIdAsync(Guid id)
         => await _db.Payments.FirstOrDefaultAsync(p => p.Id == id);
 
+    public async Task<IEnumerable<PaymentRecord>> GetAllAsync()
+        => await _db.Payments.OrderByDescending(p => p.CreatedAt).ToListAsync();
+
     public async Task<PaymentRecord?> GetByBookingIdAsync(Guid bookingId)
         => await _db.Payments.FirstOrDefaultAsync(p => p.BookingId == bookingId);
 

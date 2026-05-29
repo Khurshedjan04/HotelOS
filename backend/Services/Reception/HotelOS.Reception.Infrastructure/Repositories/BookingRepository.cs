@@ -31,6 +31,14 @@ public class BookingRepository : IBookingRepository
             .OrderByDescending(b => b.CheckIn)
             .ToListAsync();
 
+    public async Task<IEnumerable<Booking>> GetAllAsync(BookingStatus? status)
+    {
+        var query = _db.Bookings.Include(b => b.Room).AsQueryable();
+        if (status.HasValue)
+            query = query.Where(b => b.Status == status.Value);
+        return await query.OrderByDescending(b => b.CreatedAt).ToListAsync();
+    }
+
     public async Task<IEnumerable<Booking>> GetExpiredPendingAsync()
         => await _db.Bookings
             .Where(b => b.Status == BookingStatus.PendingPayment

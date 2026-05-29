@@ -1,4 +1,5 @@
 using System.Text;
+using HotelOS.RoomService.API.Consumers;
 using HotelOS.RoomService.Core.Interfaces;
 using HotelOS.RoomService.Core.Services;
 using HotelOS.RoomService.Infrastructure.Data;
@@ -26,9 +27,12 @@ builder.Services.AddDbContext<RoomServiceDbContext>(options =>
 builder.Services.AddScoped<IMenuItemRepository, MenuItemRepository>();
 builder.Services.AddScoped<IOrderRepository,    OrderRepository>();
 builder.Services.AddScoped<IRoomServiceService, RoomServiceService>();
+builder.Services.AddSingleton<IActiveRoomTracker, ActiveRoomTracker>();
 
 builder.Services.AddMassTransit(x =>
 {
+    x.AddConsumer<RoomStatusConsumer>();
+
     x.UsingRabbitMq((ctx, cfg) =>
     {
         cfg.Host(builder.Configuration["RabbitMQ:Uri"]);

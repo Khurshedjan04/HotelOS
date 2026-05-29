@@ -9,5 +9,7 @@ public interface IPaymentService
     Task<PaymentRecord> ConfirmPaymentAsync(string stripePaymentIntentId);
     Task<PaymentRecord> FailPaymentAsync(string stripePaymentIntentId, string reason);
     Task<PaymentRecord> RefundPaymentAsync(Guid bookingId);
+    Task<IEnumerable<PaymentRecord>> GetAllPaymentsAsync();
+    Task<PaymentRecord> ConfirmManualAsync(Guid paymentId);
     Task<PaymentRecord?> GetByBookingIdAsync(Guid bookingId);
 }

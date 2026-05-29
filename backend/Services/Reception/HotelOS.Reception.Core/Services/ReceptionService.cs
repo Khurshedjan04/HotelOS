@@ -19,6 +19,12 @@ public class ReceptionService : IReceptionService
 
     // ── Room operations ────────────────────────────────────────
 
+    public async Task<IEnumerable<Room>> GetAllRoomsAsync(RoomStatus? status)
+    {
+        var rooms = await _roomRepo.GetAllAsync();
+        return status.HasValue ? rooms.Where(r => r.Status == status.Value) : rooms;
+    }
+
     public async Task<IEnumerable<Room>> SearchAvailableRoomsAsync(
         RoomStyle? style, DateTime checkIn, DateTime checkOut)
     {
@@ -42,6 +48,22 @@ public class ReceptionService : IReceptionService
         return room;
     }
 
+    public async Task UpdateRoomBufferAsync(Guid roomId,
+        int cleaningBufferMins, int maintenanceBufferMins,
+        BufferType bufferType, string updatedBy)
+    {
+        var room = await _roomRepo.GetByIdWithBookingsAsync(roomId)
+            ?? throw new KeyNotFoundException($"Room {roomId} not found.");
+
+        room.BufferConfig.CleaningBufferMins    = cleaningBufferMins;
+        room.BufferConfig.MaintenanceBufferMins = maintenanceBufferMins;
+        room.BufferConfig.BufferType            = bufferType;
+        room.BufferConfig.UpdatedAt             = DateTime.UtcNow;
+        room.BufferConfig.UpdatedBy             = updatedBy;
+
+        await _roomRepo.UpdateAsync(room);
+    }
+
     public async Task UpdateRoomStatusAsync(Guid roomId, RoomStatus status)
     {
         var room = await _roomRepo.GetByIdAsync(roomId)
@@ -54,6 +76,12 @@ public class ReceptionService : IReceptionService
         => await _roomRepo.GetByIdWithBookingsAsync(roomId);
 
     // ── Booking operations ─────────────────────────────────────
+
+    public async Task<IEnumerable<Booking>> GetAllBookingsAsync(BookingStatus? status)
+        => await _bookingRepo.GetAllAsync(status);
+
+    public async Task<IEnumerable<Booking>> GetBookingsByGuestIdAsync(Guid guestId)
+        => await _bookingRepo.GetByGuestIdAsync(guestId);
 
     public async Task<Booking?> GetBookingAsync(Guid bookingId)
         => await _bookingRepo.GetByIdAsync(bookingId);

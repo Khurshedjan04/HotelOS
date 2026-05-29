@@ -22,3 +22,15 @@ public record RoomResponse(
     bool      IsSmokingAllowed,
     string    Description,
     DateTime  NextAvailableFrom);
+
+public record UpdateBufferRequest(
+    int    CleaningBufferMins,
+    int    MaintenanceBufferMins,
+    string BufferType);
+
+public record BufferResponse(
+    Guid     RoomId,
+    int      CleaningBufferMins,
+    int      MaintenanceBufferMins,
+    string   BufferType,
+    DateTime UpdatedAt);

@@ -119,6 +119,9 @@ public class IdentityService : IIdentityService
         return true;
     }
 
+    public async Task<IEnumerable<Account>> GetAllAccountsAsync()
+        => await _accountRepo.GetAllAsync();
+
     public async Task<StaffProfile?> GetStaffProfileAsync(Guid accountId)
         => await _profileRepo.GetByAccountIdAsync(accountId);
 
